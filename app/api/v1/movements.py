@@ -18,11 +18,27 @@ async def create_movement(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
+    from app.models.warehouse import Warehouse
+    from app.models.product import Product
+    
     if movement.quantity <= 0:
         raise HTTPException(status_code=400, detail="Количество должно быть больше нуля")
         
     if movement.type == 'TRANSFER' and not (movement.from_warehouse_id and movement.to_warehouse_id):
         raise HTTPException(status_code=400, detail="Трансфер требует from_warehouse и to_warehouse")
+        
+    # ВАЛИДАЦИЯ ПРАВ СОБСТВЕННОСТИ (Defense-in-depth / IDOR fix)
+    prod = await session.execute(select(Product).filter_by(id=movement.product_id, company_id=current_user.company_id))
+    if not prod.scalars().first():
+        raise HTTPException(status_code=403, detail="Товар не найден или доступ запрещен")
+
+    warehouse_ids = [w_id for w_id in [movement.from_warehouse_id, movement.to_warehouse_id] if w_id]
+    if warehouse_ids:
+        wh_result = await session.execute(
+            select(Warehouse).filter(Warehouse.id.in_(warehouse_ids), Warehouse.company_id == current_user.company_id)
+        )
+        if len(wh_result.scalars().all()) != len(set(warehouse_ids)):
+            raise HTTPException(status_code=403, detail="Склад не найден или доступ запрещен")
         
     new_movement = Movement(**movement.model_dump(), company_id=current_user.company_id, user_id=current_user.id)
     session.add(new_movement)
@@ -99,7 +115,7 @@ async def delete_movement(
         if inv:
             inv.quantity -= prev_delta
             if inv.quantity < 0:
-                inv.quantity = 0
+                raise HTTPException(status_code=400, detail="Удаление невозможно: остаток станет отрицательным")
 
     if mov.type == 'IN':
         await rollback_inventory(mov.to_warehouse_id, mov.product_id, mov.quantity)

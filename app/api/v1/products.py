@@ -37,6 +37,13 @@ async def create_product(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
+    from app.models.warehouse import Warehouse
+    
+    if product.initial_warehouse_id:
+        wh_result = await session.execute(select(Warehouse).filter_by(id=product.initial_warehouse_id, company_id=current_user.company_id))
+        if not wh_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Склад не найден или доступ запрещен")
+
     product_data = product.model_dump(exclude={'initial_warehouse_id', 'initial_quantity'})
     new_product = Product(**product_data, company_id=current_user.company_id)
     session.add(new_product)
