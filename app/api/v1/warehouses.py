@@ -22,7 +22,7 @@ async def list_warehouses(
 ):
     result = await session.execute(
         select(Warehouse)
-        .filter_by(company_id=current_user.company_id)
+        .filter_by(company_id=current_user.company_id, is_active=True)
         .offset(skip)
         .limit(limit)
     )
@@ -77,23 +77,10 @@ async def delete_warehouse(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    result = await session.execute(select(Warehouse).filter_by(id=warehouse_id, company_id=current_user.company_id))
+    result = await session.execute(select(Warehouse).filter_by(id=warehouse_id, company_id=current_user.company_id, is_active=True))
     warehouse = result.scalars().first()
     if not warehouse:
         raise HTTPException(status_code=404, detail="Warehouse not found")
         
-    result_mov = await session.execute(
-        select(Movement).filter(
-            ((Movement.from_warehouse_id == warehouse_id) | (Movement.to_warehouse_id == warehouse_id)),
-            Movement.company_id == current_user.company_id
-        )
-    )
-    for mov in result_mov.scalars().all():
-        await session.delete(mov)
-        
-    result_inv = await session.execute(select(Inventory).filter_by(warehouse_id=warehouse_id, company_id=current_user.company_id))
-    for inv in result_inv.scalars().all():
-        await session.delete(inv)
-        
-    await session.delete(warehouse)
+    warehouse.is_active = False
     await session.commit()

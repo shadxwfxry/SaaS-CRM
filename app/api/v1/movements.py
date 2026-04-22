@@ -70,8 +70,20 @@ async def create_movement(
              raise HTTPException(status_code=400, detail="Для списания укажите from_warehouse_id")
         await update_inventory(movement.from_warehouse_id, movement.product_id, -movement.quantity)
     elif movement.type == 'TRANSFER':
-        await update_inventory(movement.from_warehouse_id, movement.product_id, -movement.quantity)
-        await update_inventory(movement.to_warehouse_id, movement.product_id, movement.quantity)
+        if movement.from_warehouse_id == movement.to_warehouse_id:
+            raise HTTPException(status_code=400, detail="Нельзя переместить товары внутри одного склада")
+            
+        # Защита от Deadlock: всегда блокируем склады в порядке возрастания их ID
+        wh_ids = sorted([movement.from_warehouse_id, movement.to_warehouse_id])
+        
+        # Сначала блокируем первый в списке склад, затем второй
+        # Но логически мы все равно списываем с from и зачисляем на to
+        if wh_ids[0] == movement.from_warehouse_id:
+            await update_inventory(movement.from_warehouse_id, movement.product_id, -movement.quantity)
+            await update_inventory(movement.to_warehouse_id, movement.product_id, movement.quantity)
+        else:
+            await update_inventory(movement.to_warehouse_id, movement.product_id, movement.quantity)
+            await update_inventory(movement.from_warehouse_id, movement.product_id, -movement.quantity)
         
     await session.commit()
     await session.refresh(new_movement)
@@ -122,8 +134,14 @@ async def delete_movement(
     elif mov.type == 'OUT':
         await rollback_inventory(mov.from_warehouse_id, mov.product_id, -mov.quantity)
     elif mov.type == 'TRANSFER':
-        await rollback_inventory(mov.from_warehouse_id, mov.product_id, -mov.quantity)
-        await rollback_inventory(mov.to_warehouse_id, mov.product_id, mov.quantity)
+        # Та же защита от Deadlock при удалении
+        wh_ids = sorted([mov.from_warehouse_id, mov.to_warehouse_id])
+        if wh_ids[0] == mov.from_warehouse_id:
+            await rollback_inventory(mov.from_warehouse_id, mov.product_id, -mov.quantity)
+            await rollback_inventory(mov.to_warehouse_id, mov.product_id, mov.quantity)
+        else:
+            await rollback_inventory(mov.to_warehouse_id, mov.product_id, mov.quantity)
+            await rollback_inventory(mov.from_warehouse_id, mov.product_id, -mov.quantity)
         
     await session.delete(mov)
     await session.commit()

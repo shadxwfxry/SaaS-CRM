@@ -24,7 +24,7 @@ async def list_products(
 ):
     result = await session.execute(
         select(Product)
-        .filter_by(company_id=current_user.company_id)
+        .filter_by(company_id=current_user.company_id, is_active=True)
         .options(selectinload(Product.inventory).selectinload(Inventory.warehouse))
         .offset(skip)
         .limit(limit)
@@ -106,18 +106,10 @@ async def delete_product(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    result = await session.execute(select(Product).filter_by(id=product_id, company_id=current_user.company_id))
+    result = await session.execute(select(Product).filter_by(id=product_id, company_id=current_user.company_id, is_active=True))
     product = result.scalars().first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
         
-    result_mov = await session.execute(select(Movement).filter_by(product_id=product_id, company_id=current_user.company_id))
-    for mov in result_mov.scalars().all():
-        await session.delete(mov)
-        
-    result_inv = await session.execute(select(Inventory).filter_by(product_id=product_id, company_id=current_user.company_id))
-    for inv in result_inv.scalars().all():
-        await session.delete(inv)
-        
-    await session.delete(product)
+    product.is_active = False
     await session.commit()
