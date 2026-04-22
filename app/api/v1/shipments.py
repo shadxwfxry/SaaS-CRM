@@ -4,6 +4,8 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List
 from uuid import UUID
+import time
+import secrets
 
 from app.core.database import get_async_session
 from app.core.security import get_current_user
@@ -40,36 +42,24 @@ async def create_shipment(
     if shipment.quantity <= 0:
          raise HTTPException(status_code=400, detail="Количество должно быть больше нуля")
          
-    # Smart inventory deduct block
-    if shipment.warehouse_id:
-        result = await session.execute(
-            select(Inventory)
-            .filter_by(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, company_id=current_user.company_id)
-            .with_for_update()
-        )
-        inv = result.scalars().first()
-        if not inv or inv.quantity < shipment.quantity:
-            raise HTTPException(status_code=400, detail="Недостаточно товара на указанном складе")
-        inv.quantity -= shipment.quantity
-    else:
-        result = await session.execute(
-            select(Inventory)
-            .filter_by(product_id=shipment.product_id, company_id=current_user.company_id)
-            .order_by(Inventory.quantity.desc())
-            .with_for_update()
-        )
-        inventories = result.scalars().all()
+    # Strict inventory deduct block
+    if not shipment.warehouse_id:
+        raise HTTPException(status_code=400, detail="Укажите склад (warehouse_id) для отгрузки")
         
-        if not inventories or inventories[0].quantity < shipment.quantity:
-            raise HTTPException(status_code=400, detail="Жоден склад не має достатньої кількості товару для цієї відгрузки")
-            
-        target_inv = inventories[0]
-        target_inv.quantity -= shipment.quantity
-        shipment.warehouse_id = target_inv.warehouse_id
+    result = await session.execute(
+        select(Inventory)
+        .filter_by(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, company_id=current_user.company_id)
+        .with_for_update()
+    )
+    inv = result.scalars().first()
+    if not inv or inv.quantity < shipment.quantity:
+        raise HTTPException(status_code=400, detail="Недостаточно товара на указанном складе")
+    inv.quantity -= shipment.quantity
 
     if not shipment.order_number:
-        count = (await session.execute(select(func.count(Shipment.id)).filter_by(company_id=current_user.company_id))).scalar() or 0
-        shipment.order_number = f"ORD-{1000 + count + 1}"
+        timestamp = int(time.time())
+        random_hash = secrets.token_hex(2).upper()
+        shipment.order_number = f"ORD-{timestamp}-{random_hash}"
     
     new_shipment = Shipment(**shipment.model_dump(), company_id=current_user.company_id)
     session.add(new_shipment)
@@ -88,17 +78,18 @@ async def delete_shipment(
     if not shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
         
-    result_inv = await session.execute(
-        select(Inventory)
-        .filter_by(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, company_id=current_user.company_id)
-        .with_for_update()
-    )
-    inv = result_inv.scalars().first()
-    if inv:
-        inv.quantity += shipment.quantity
-    else:
-        new_inv = Inventory(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, quantity=shipment.quantity, company_id=current_user.company_id)
-        session.add(new_inv)
+    if shipment.status != 'RETURNED':
+        result_inv = await session.execute(
+            select(Inventory)
+            .filter_by(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, company_id=current_user.company_id)
+            .with_for_update()
+        )
+        inv = result_inv.scalars().first()
+        if inv:
+            inv.quantity += shipment.quantity
+        else:
+            new_inv = Inventory(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, quantity=shipment.quantity, company_id=current_user.company_id)
+            session.add(new_inv)
         
     await session.delete(shipment)
     await session.commit()
