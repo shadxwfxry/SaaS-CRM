@@ -46,10 +46,10 @@ async def get_warehouse(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    result = await session.execute(select(Warehouse).filter_by(id=warehouse_id, company_id=current_user.company_id))
+    result = await session.execute(select(Warehouse).filter_by(id=warehouse_id, company_id=current_user.company_id, is_active=True))
     warehouse = result.scalars().first()
     if not warehouse:
-        raise HTTPException(status_code=404, detail="Warehouse not found")
+        raise HTTPException(status_code=404, detail="Warehouse not found or archived")
     return warehouse
 
 @router.put("/{warehouse_id}", response_model=WarehouseResponse)
@@ -59,10 +59,10 @@ async def update_warehouse(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    result = await session.execute(select(Warehouse).filter_by(id=warehouse_id, company_id=current_user.company_id))
+    result = await session.execute(select(Warehouse).filter_by(id=warehouse_id, company_id=current_user.company_id, is_active=True))
     warehouse = result.scalars().first()
     if not warehouse:
-        raise HTTPException(status_code=404, detail="Warehouse not found")
+        raise HTTPException(status_code=404, detail="Warehouse not found or archived")
     
     warehouse.name = data.name
     warehouse.address = getattr(data, 'address', warehouse.address)

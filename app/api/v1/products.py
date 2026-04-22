@@ -48,8 +48,7 @@ async def create_product(
     new_product = Product(**product_data, company_id=current_user.company_id)
     session.add(new_product)
     try:
-        await session.commit()
-        await session.refresh(new_product)
+        await session.flush() # ФИКС: Вместо commit используем flush
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Товар с таким артикулом (SKU) уже существует")
@@ -71,7 +70,8 @@ async def create_product(
             company_id=current_user.company_id
         )
         session.add(mov)
-        await session.commit()
+    
+    await session.commit() # ЕДИНСТВЕННЫЙ COMMIT в конце
 
     return new_product
 
@@ -82,10 +82,10 @@ async def update_product(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
-    result = await session.execute(select(Product).filter_by(id=product_id, company_id=current_user.company_id))
+    result = await session.execute(select(Product).filter_by(id=product_id, company_id=current_user.company_id, is_active=True))
     product = result.scalars().first()
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        raise HTTPException(status_code=404, detail="Product not found or archived")
         
     product.sku = data.sku
     product.title = data.title
@@ -112,4 +112,6 @@ async def delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
         
     product.is_active = False
+    # ФИКС: Освобождаем SKU для будущего использования
+    product.sku = f"{product.sku}_deleted_{str(product.id)[:8]}" 
     await session.commit()
