@@ -38,7 +38,7 @@ async def create_product(
     current_user: User = Depends(get_current_user)
 ):
     from app.models.warehouse import Warehouse
-    from app.models.category import Category
+    from app.models.product import Category
     
     if product.category_id:
         cat_result = await session.execute(
@@ -79,9 +79,15 @@ async def create_product(
         )
         session.add(mov)
     
-    await session.commit() # ЕДИНСТВЕННЫЙ COMMIT в конце
-
-    return new_product
+    await session.commit()
+    
+    # Загружаем объект со всеми связями для корректного ответа
+    final_result = await session.execute(
+        select(Product)
+        .filter_by(id=new_product.id)
+        .options(selectinload(Product.inventory).selectinload(Inventory.warehouse))
+    )
+    return final_result.scalars().first()
 
 @router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
@@ -96,7 +102,7 @@ async def update_product(
         raise HTTPException(status_code=404, detail="Product not found or archived")
         
     if data.category_id:
-        from app.models.category import Category
+        from app.models.product import Category
         cat_result = await session.execute(
             select(Category).filter_by(id=data.category_id, company_id=current_user.company_id, is_active=True)
         )
@@ -110,11 +116,16 @@ async def update_product(
     
     try:
         await session.commit()
-        await session.refresh(product)
+        # Загружаем со связями
+        final_result = await session.execute(
+            select(Product)
+            .filter_by(id=product.id)
+            .options(selectinload(Product.inventory).selectinload(Inventory.warehouse))
+        )
+        return final_result.scalars().first()
     except IntegrityError:
         await session.rollback()
         raise HTTPException(status_code=400, detail="Товар с таким артикулом (SKU) уже существует")
-    return product
 
 @router.delete("/{product_id}", status_code=204)
 async def delete_product(

@@ -21,7 +21,7 @@ async def list_categories(
 ):
     result = await session.execute(
         select(Category)
-        .filter_by(company_id=current_user.company_id)
+        .filter_by(company_id=current_user.company_id, is_active=True)
         .offset(skip)
         .limit(limit)
     )
@@ -33,14 +33,17 @@ async def create_category(
     session: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
+    # Проверка на дубликат в рамках компании
+    result = await session.execute(
+        select(Category).filter_by(name=category.name, company_id=current_user.company_id, is_active=True)
+    )
+    if result.scalars().first():
+        raise HTTPException(status_code=400, detail="Категорія з такою назвою вже існує у вашій компанії")
+
     new_category = Category(**category.model_dump(), company_id=current_user.company_id)
     session.add(new_category)
-    try:
-        await session.commit()
-        await session.refresh(new_category)
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(status_code=400, detail="Категория с таким именем уже существует")
+    await session.commit()
+    await session.refresh(new_category)
     return new_category
 
 @router.put("/{category_id}", response_model=CategoryResponse)
@@ -72,12 +75,12 @@ async def delete_category(
 ):
     result = await session.execute(select(Category).filter_by(id=category_id, company_id=current_user.company_id))
     category = result.scalars().first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+    # Soft Delete: просто помечаем как неактивную
+    category.is_active = False
+    
+    # При желании можно отвязать товары, но лучше оставить для истории (они просто не будут видеть категорию в списке)
+    # result_prod = await session.execute(select(Product).filter_by(category_id=category_id, company_id=current_user.company_id))
+    # for p in result_prod.scalars().all():
+    #     p.category_id = None
         
-    result_prod = await session.execute(select(Product).filter_by(category_id=category_id, company_id=current_user.company_id))
-    for p in result_prod.scalars().all():
-        p.category_id = None
-        
-    await session.delete(category)
     await session.commit()

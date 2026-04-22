@@ -1,142 +1,361 @@
-# Warehouse SaaS CRM 📦
+# 📦 W-CRM — Warehouse SaaS CRM
 
-🌐 **Choose your language / Выберите язык / Оберіть мову:**
-- [🇷🇺 Русский](#-русский)
-- [🇬🇧 English](#-english)
-- [🇺🇦 Українська](#-українська)
+<p align="center">
+  <strong>Мультитенантная складская CRM-система корпоративного уровня</strong><br>
+  Управление складами · Учёт товаров · Отправления · Аналитика
+</p>
 
 ---
 
-## 🇷🇺 Русский
+## 🌐 Языки / Languages
 
-## 🚀 Особенности
-- **Мультиязычность**: Встроенная поддержка переводов (i18n) интерфейса "на лету" (включая Русский, Украинский и Английский).
-- **Складской контроль**: Переводы между складами, поступления, инвентаризация и автоматический мониторинг наличия.
-- **Отправления**: Оформление отгрузок клиенту. При изменении статуса товары интеллектуально отслеживаются (автосписание).
-- **Продвинутый дашборд**: Аналитическая визуализация сделок, выручки и хитов продаж для маркетологов.
-- **Современный UI**: Премиальный, масштабируемый интерфейс, готовый для продуктовых B2B внедрений.
+- [🇷🇺 Русский](#-начало-работы)
+- [🇬🇧 English](#-getting-started)
+
+---
+
+## 📋 Оглавление
+
+- [О проекте](#-о-проекте)
+- [Возможности](#-возможности)
+- [Технологический стек](#-технологический-стек)
+- [Начало работы](#-начало-работы)
+- [Структура проекта](#-структура-проекта)
+- [API документация](#-api-документация)
+- [Безопасность](#-безопасность)
+- [Конфигурация](#-конфигурация)
+- [Переход в Production](#-переход-в-production)
+
+---
+
+## 🎯 О проекте
+
+**W-CRM** — это готовая к работе SaaS-платформа для складского учёта с поддержкой **мультитенантности** (изоляции данных между компаниями). Каждая зарегистрированная компания получает изолированное рабочее пространство с собственными товарами, складами, категориями и отправлениями.
+
+Система построена с акцентом на **безопасность**, **целостность данных** и **масштабируемость**.
+
+---
+
+## ✨ Возможности
+
+### Для пользователей
+| Модуль | Описание |
+|---|---|
+| 🏠 **Дашборд** | Аналитика: выручка, топ товаров, статистика отправлений |
+| 📂 **Категории** | Создание и управление категориями товаров |
+| 📦 **Номенклатура** | Каталог товаров с артикулами (SKU), ценами, привязкой к складам |
+| 🏭 **Склады** | Управление складскими помещениями и адресами |
+| 🔄 **Движения** | Приход (IN), расход (OUT), трансфер между складами (TRANSFER) |
+| 🚚 **Отправления** | Оформление доставок с трек-номерами, статусами и автосписанием со склада |
+| 🌍 **Мультиязычность** | Переключение интерфейса между RU / UA / EN |
+
+### Архитектура безопасности
+- 🔒 **HttpOnly Cookies** — токены недоступны из JavaScript (защита от XSS)
+- 🛡 **IDOR Protection** — все запросы фильтруются по `company_id` текущего пользователя
+- ⏱ **Rate Limiting** — ограничение частоты запросов (slowapi)
+- 🔐 **Enumeration Protection** — невозможно узнать, существует ли email в системе
+- ⚛️ **Атомарные транзакции** — гарантия целостности данных при создании сложных объектов
+- 🔄 **Deadlock Prevention** — упорядоченная блокировка при трансферах между складами
+- 📜 **Audit Trail** — каждое изменение остатков фиксируется в таблице `movements`
+- 🗑 **Soft Delete** — удалённые данные архивируются, а не стираются
+
+---
 
 ## 🛠 Технологический стек
-### Backend (Серверная часть)
-- **Фреймворк**: FastAPI (Python)
-- **База данных**: SQLite + SQLAlchemy (Async)
-- **Миграции**: Alembic
 
-### Frontend (Клиентская часть)
-- **Инструментарий**: React, Vite, TypeScript
-- **Стилизация**: Tailwind CSS
-- **Состояние**: React Query + Zustand
-- **Маршрутизация**: React Router
+### Backend
+| Технология | Назначение |
+|---|---|
+| **FastAPI** | Веб-фреймворк (Python, async) |
+| **SQLAlchemy 2.0** | ORM (асинхронный режим) |
+| **SQLite / PostgreSQL** | База данных (SQLite для разработки) |
+| **Alembic** | Миграции базы данных |
+| **Pydantic v2** | Валидация данных |
+| **Passlib + bcrypt** | Хэширование паролей |
+| **python-jose** | JWT-токены |
+| **slowapi** | Rate Limiting |
+
+### Frontend
+| Технология | Назначение |
+|---|---|
+| **React 18** | UI-фреймворк |
+| **TypeScript** | Типизация |
+| **Vite** | Сборщик |
+| **Tailwind CSS** | Стилизация |
+| **React Query** | Кэширование серверного состояния |
+| **React Router** | Маршрутизация |
+| **Lucide React** | Иконки |
 
 ---
 
-## 💻 Как запустить проект локально
+## 🚀 Начало работы
 
-### 1. Запуск Backend
-Откройте терминал в корневой папке проекта и выполните:
+### Предварительные требования
+- **Python 3.12+**
+- **Node.js 18+** и npm
+- **Git**
+
+### 1. Клонирование репозитория
 ```bash
-# Активируйте виртуальное окружение (для Windows)
+git clone https://github.com/shadxwfxry/SaaS-CRM.git
+cd SaaS-CRM
+```
+
+### 2. Настройка Backend
+
+```bash
+# Создайте виртуальное окружение
+python -m venv venv
+
+# Активируйте его
+# Windows (PowerShell):
 .\venv\Scripts\Activate.ps1
-# (для Mac/Linux): source venv/bin/activate
+# Windows (CMD):
+.\venv\Scripts\activate.bat
+# Linux/macOS:
+source venv/bin/activate
 
-# Запустите сервер (должен работать на порту 8000)
-uvicorn app.main:app --reload --port 8000
+# Установите зависимости
+pip install -r requirements.txt
 ```
-Swagger UI (документация API) будет доступна по адресу: http://localhost:8000/docs
 
-### 2. Запуск Frontend
-Откройте **второй терминал**, перейдите в папку фронтенда и запустите сборщик:
+### 3. Настройка окружения (.env)
+
+Создайте файл `.env` в корне проекта (или отредактируйте существующий):
+
+```env
+# Для локальной разработки с SQLite
+USE_SQLITE=true
+
+# PostgreSQL (для Production, заполните при необходимости)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+POSTGRES_SERVER=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=saas_crm
+
+# Безопасность (ОБЯЗАТЕЛЬНО замените ключ для Production!)
+JWT_SECRET_KEY=ваш-длинный-случайный-секретный-ключ
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
+
+> ⚠️ **Важно:** Для генерации надёжного `JWT_SECRET_KEY` выполните:
+> ```bash
+> python -c "import secrets; print(secrets.token_hex(32))"
+> ```
+
+### 4. Инициализация базы данных
+
+```bash
+alembic upgrade head
+```
+
+### 5. Настройка Frontend
+
 ```bash
 cd frontend
 npm install
-npm run dev
+cd ..
 ```
-Интерфейс CRM откроется по адресу `http://localhost:5173` (или `5174`).
 
----
+### 6. Запуск проекта
 
-## 🏗 Архитектура каталогов и как это изменять
-Если вы хотите доработать проект, вот основная структура:
-- `/app/api/v1/` — Здесь находятся роутеры FastAPI (логика запросов). Для добавления новых endpoints создавайте файлы здесь.
-- `/app/models/` — ORM Модели таблиц Базы Данных.
-- `/app/schemas/` — Pydantic схемы для валидации входящих/исходящих данных.
-- `/frontend/src/pages/` — React-компоненты экранов (Дашборд, Отправления, Склады).
-- `/frontend/src/components/` — Переиспользуемые элементы интерфейса.
-- `/frontend/src/i18n.ts` — Файл конфигурации языков и переводов.
+#### Вариант А: Быстрый запуск (Windows)
+Просто запустите файл **`start.bat`** — он откроет оба сервера автоматически.
 
-Если вы меняете таблицы в `models`, не забудьте создать миграцию Alembic:
-`alembic revision --autogenerate -m "ваше описание"`
-`alembic upgrade head`
+#### Вариант Б: Ручной запуск
 
-## 💡 Будущее развитие
-Этот проект является каркасом. В него можно легко интегрировать:
-- JWT-авторизацию (разделение по аккаунтам/компаниям).
-- Отправку Email-накладных при формировании `Shipment`.
-
----
-
-## 🇬🇧 English
-
-Welcome to **Warehouse SaaS CRM** — a powerful and easy-to-use solution for warehouse management, inventory, and sales. Built with a modern technology stack, it solves business problems extremely quickly.
-
-### 🚀 Features
-- **Multi-language**: Built-in translation support (i18n).
-- **Inventory Control**: Warehouse management, incoming tracking, transfers.
-- **Shipments**: Track packages, payment methods, order numbers, and automatic inventory rollback upon "RETURNED" status.
-- **Advanced Dashboard**: Live preview of completed transactions (DELIVERED) logic calculating real-time revenue and Bestsellers.
-
-### 🛠 Tech Stack
-- **Backend**: FastAPI (Python), SQLite, SQLAlchemy, Alembic
-- **Frontend**: React, Vite, Tailwind CSS, TypeScript, React Query
-
-### 💻 How to run locally
-
-#### 1. Start the Backend
-Open a terminal in the root folder and run:
+**Терминал 1 — Backend:**
 ```bash
-# Activate virtual environment
-.\venv\Scripts\Activate.ps1   # Windows
-# source venv/bin/activate    # Mac/Linux
-
-# Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-#### 2. Start the Frontend
-Open a **second terminal**, go to the frontend folder, and run:
+**Терминал 2 — Frontend:**
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
-Open `http://localhost:5173` in your browser.
+
+### 7. Откройте в браузере
+
+| Сервис | URL |
+|---|---|
+| 🖥 **CRM-интерфейс** | http://localhost:5173 |
+| 📖 **Swagger API Docs** | http://localhost:8000/docs |
+
+### 8. Первый вход
+
+1. Перейдите на страницу **Регистрации** (`/register`)
+2. Укажите название компании, email и пароль
+3. Войдите в систему — вы попадёте в **Дашборд**
+4. Начните создавать **Категории → Склады → Товары → Отправления**
 
 ---
 
-## 🇺🇦 Українська
+## 📁 Структура проекта
 
-Ласкаво просимо до **Warehouse SaaS CRM** — потужного рішення для керування складами, обліку товарів та оптимізації відправлень користувачам. Цей продукт можна використовувати як основу для великої комерційної CRM для бізнесу.
+```
+SaaS-CRM/
+├── app/                          # Backend (FastAPI)
+│   ├── api/v1/                   # API роутеры
+│   │   ├── auth.py               #   Регистрация, вход, восстановление пароля
+│   │   ├── categories.py         #   CRUD категорий
+│   │   ├── products.py           #   CRUD товаров + начальные остатки
+│   │   ├── warehouses.py         #   CRUD складов
+│   │   ├── movements.py          #   Движения товаров (IN/OUT/TRANSFER)
+│   │   ├── shipments.py          #   Отправления (создание, статусы)
+│   │   └── dashboard.py          #   Аналитика
+│   ├── core/                     # Ядро приложения
+│   │   ├── config.py             #   Настройки из .env
+│   │   ├── database.py           #   Подключение к БД
+│   │   ├── security.py           #   JWT, хэширование, авторизация
+│   │   └── limiter.py            #   Rate Limiting
+│   ├── models/                   # ORM-модели (SQLAlchemy)
+│   │   ├── user.py               #   User, Role, PasswordResetToken
+│   │   ├── company.py            #   Company
+│   │   ├── product.py            #   Product, Category
+│   │   ├── warehouse.py          #   Warehouse
+│   │   ├── inventory.py          #   Inventory, Movement
+│   │   └── shipment.py           #   Shipment
+│   ├── schemas/                  # Pydantic-схемы (валидация)
+│   └── main.py                   # Точка входа FastAPI
+├── frontend/                     # Frontend (React + Vite)
+│   ├── src/
+│   │   ├── pages/                #   Страницы (Dashboard, Products, Login...)
+│   │   ├── components/           #   Переиспользуемые компоненты
+│   │   ├── context/              #   AuthContext (состояние авторизации)
+│   │   ├── api/                  #   Axios client
+│   │   ├── i18n.ts               #   Мультиязычность (RU/UA/EN)
+│   │   └── App.tsx               #   Маршрутизация
+│   └── vite.config.ts            #   Конфигурация Vite + прокси
+├── migrations/                   # Alembic-миграции
+├── .env                          # Переменные окружения
+├── requirements.txt              # Python-зависимости
+├── start.bat                     # Быстрый запуск (Windows)
+└── README.md                     # ← Вы здесь
+```
 
-### 🚀 Головні можливості
-- **Мультимовність**: Зручна зміна мови (i18n).
-- **Складський облік**: Переміщення між складами, швидкий підрахунок залишків.
-- **Відправлення**: Оформлення доставок. Під час зміни статусу на "Повернено", всі товари автоматично повертаються на склад. Підтримка номерів замовлень та способів оплати.
-- **Дашборд**: Статистика найпопулярніших товарів на основі виконаних замовлень (статус "Завершено") та підрахунок чистого прибутку.
+---
 
-### 🛠 Технологічний стек
-- **Серверна частина**: FastAPI (Python), SQLite (база даних), SQLAlchemy
-- **Клієнтська частина**: React, Vite, Tailwind CSS, TypeScript
+## 📖 API Документация
 
-### 💻 Запуск проекту
-Відкрийте перший термінал для бекенду:
+После запуска бэкенда, полная интерактивная документация доступна по адресу:
+**http://localhost:8000/docs** (Swagger UI)
+
+### Основные эндпоинты
+
+| Метод | Путь | Описание |
+|---|---|---|
+| `POST` | `/api/v1/auth/register` | Регистрация компании и пользователя |
+| `POST` | `/api/v1/auth/login` | Авторизация (OAuth2, form-data) |
+| `GET` | `/api/v1/auth/me` | Текущий пользователь |
+| `POST` | `/api/v1/auth/password-reset-request` | Запрос на сброс пароля |
+| `POST` | `/api/v1/auth/password-reset-confirm` | Подтверждение нового пароля |
+| | | |
+| `GET/POST` | `/api/v1/categories/` | Список / Создание категорий |
+| `PUT/DELETE` | `/api/v1/categories/{id}` | Обновление / Архивирование |
+| | | |
+| `GET/POST` | `/api/v1/products/` | Список / Создание товаров |
+| `PUT/DELETE` | `/api/v1/products/{id}` | Обновление / Архивирование |
+| | | |
+| `GET/POST` | `/api/v1/warehouses/` | Список / Создание складов |
+| `PUT/DELETE` | `/api/v1/warehouses/{id}` | Обновление / Архивирование |
+| | | |
+| `GET/POST` | `/api/v1/movements/` | Список / Создание движений |
+| `DELETE` | `/api/v1/movements/{id}` | Откат движения (с компенсацией) |
+| | | |
+| `GET/POST` | `/api/v1/shipments/` | Список / Создание отправлений |
+| `PATCH` | `/api/v1/shipments/{id}/status` | Смена статуса (SHIPPED → DELIVERED / RETURNED) |
+| | | |
+| `GET` | `/api/v1/dashboard/stats` | Статистика для дашборда |
+
+---
+
+## 🔒 Безопасность
+
+### Аутентификация
+Система использует **JWT-токены**, которые хранятся в **HttpOnly-куках**. Это означает:
+- Токен автоматически отправляется с каждым запросом (через cookie)
+- JavaScript **не имеет доступа** к токену (защита от XSS)
+- Swagger UI по-прежнему работает через заголовок `Authorization`
+
+### Восстановление пароля
+Пока SMTP не настроен, ссылка для сброса пароля выводится в **консоль бэкенда**:
+```
+[EMAIL MOCK] To: user@example.com
+[EMAIL MOCK] Link: http://localhost:5173/reset-password?token=...
+```
+Скопируйте ссылку в браузер, чтобы задать новый пароль.
+
+### Изоляция данных (Multi-tenancy)
+Каждый запрос к API фильтруется по `company_id` текущего пользователя. Невозможно получить доступ к данным другой компании, даже зная её `id`.
+
+---
+
+## ⚙️ Конфигурация
+
+### Переменные окружения (.env)
+
+| Переменная | Описание | По умолчанию |
+|---|---|---|
+| `USE_SQLITE` | Использовать SQLite вместо PostgreSQL | `true` |
+| `JWT_SECRET_KEY` | Секретный ключ для подписи токенов | *обязательно* |
+| `JWT_ALGORITHM` | Алгоритм подписи | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Время жизни токена (минуты) | `60` |
+| `FRONTEND_CORS_ORIGINS` | Разрешённые источники (CORS) | `http://localhost:5173,...` |
+| `POSTGRES_*` | Параметры PostgreSQL (при `USE_SQLITE=false`) | — |
+
+---
+
+## 🏭 Переход в Production
+
+При переносе проекта в «боевой» режим, необходимо выполнить следующие шаги:
+
+1. **Сменить базу данных** — установите `USE_SQLITE=false` и заполните `POSTGRES_*` в `.env`
+2. **Обновить `JWT_SECRET_KEY`** — сгенерируйте новый случайный ключ
+3. **Включить Secure Cookie** — в файле `app/api/v1/auth.py` измените `secure=False` на `secure=True`
+4. **Настроить SMTP** — замените `[EMAIL MOCK]` в `auth.py` на реальную отправку через SendGrid, Mailgun и т.д.
+5. **Обновить CORS** — укажите точный домен вашего фронтенда вместо `localhost`
+6. **Запустить через Gunicorn** — `gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker`
+
+---
+
+## 🇬🇧 Getting Started
+
+**W-CRM** is a multi-tenant warehouse CRM SaaS platform built with FastAPI and React.
+
+### Quick Start
+
 ```bash
-.\venv\Scripts\Activate.ps1
+# Clone
+git clone https://github.com/shadxwfxry/SaaS-CRM.git && cd SaaS-CRM
+
+# Backend
+python -m venv venv && .\venv\Scripts\activate
+pip install -r requirements.txt
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
+
+# Frontend (new terminal)
+cd frontend && npm install && npm run dev
 ```
 
-Відкрийте другий термінал для фронтенду:
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Open **http://localhost:5173**, register a company and start working.
+
+### Key Features
+- **Multi-tenant isolation** — each company has its own data space
+- **HttpOnly JWT cookies** — XSS-proof authentication
+- **Inventory tracking** — IN/OUT/TRANSFER with atomic transactions
+- **Shipment management** — with auto-deduction and status workflow
+- **Password recovery** — token-based reset flow
+- **i18n** — Russian, Ukrainian, English
+
+### API Docs
+Available at **http://localhost:8000/docs** (Swagger UI) after starting the backend.
+
+---
+
+## 📄 Лицензия / License
+
+MIT — свободно используйте, изменяйте и распространяйте.

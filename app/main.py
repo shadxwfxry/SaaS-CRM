@@ -18,10 +18,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS для локальной разработки фронтенда
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.FRONTEND_CORS_ORIGINS.split(","),
+    allow_origins=[origin.strip() for origin in settings.FRONTEND_CORS_ORIGINS.split(",")],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"], # Строгі CORS правила (Security Fix)
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 from app.api.v1 import warehouses, products, movements, categories, dashboard, shipments, auth

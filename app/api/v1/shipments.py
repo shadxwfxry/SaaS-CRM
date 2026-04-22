@@ -76,8 +76,14 @@ async def create_shipment(
     session.add(mov)
 
     await session.commit()
-    await session.refresh(new_shipment)
-    return new_shipment
+    
+    # Загружаем со связью product для корректного ответа
+    final_result = await session.execute(
+        select(Shipment)
+        .filter_by(id=new_shipment.id)
+        .options(selectinload(Shipment.product))
+    )
+    return final_result.scalars().first()
 
 # DELETE /shipments/{id} удален по архитектурным соображениям. 
 # Используйте PATCH /status для отмены (CANCELLED) или возврата (RETURNED).
@@ -123,5 +129,11 @@ async def update_shipment_status(
             
     shipment.status = status_update.status
     await session.commit()
-    await session.refresh(shipment)
-    return shipment
+    
+    # Загружаем со связью product для корректного ответа
+    final_result = await session.execute(
+        select(Shipment)
+        .filter_by(id=shipment.id)
+        .options(selectinload(Shipment.product))
+    )
+    return final_result.scalars().first()
