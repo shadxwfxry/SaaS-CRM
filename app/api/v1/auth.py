@@ -27,13 +27,13 @@ async def register(request: Request, user_in: UserCreate, session: AsyncSession 
         
     # Create or find company
     result_company = await session.execute(select(Company).filter_by(name=user_in.company_name))
-    company = result_company.scalars().first()
+    if result_company.scalars().first():
+        raise HTTPException(status_code=400, detail="Компанія з такою назвою вже існує. Зверніться до адміністратора для запрошення.")
     
-    if not company:
-        company = Company(name=user_in.company_name)
-        session.add(company)
-        await session.commit()
-        await session.refresh(company)
+    company = Company(name=user_in.company_name)
+    session.add(company)
+    await session.commit()
+    await session.refresh(company)
     
     # Create user
     user = User(
@@ -65,7 +65,7 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
         key="access_token",
         value=f"Bearer {access_token}",
         httponly=True,
-        samesite="lax",
+        samesite="strict",
         secure=False, # Set to True in HTTPS production
         max_age=3600
     )
