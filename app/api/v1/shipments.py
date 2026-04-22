@@ -11,7 +11,7 @@ from app.core.database import get_async_session
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.shipment import Shipment
-from app.models.inventory import Inventory
+from app.models.inventory import Inventory, Movement
 from app.schemas.shipment import ShipmentCreate, ShipmentResponse, ShipmentStatusUpdate
 
 router = APIRouter(prefix="/shipments", tags=["shipments"])
@@ -63,6 +63,18 @@ async def create_shipment(
     
     new_shipment = Shipment(**shipment.model_dump(), company_id=current_user.company_id)
     session.add(new_shipment)
+    
+    # ФИКС: Оставляем след в истории перемещений (Movement)
+    mov = Movement(
+        type='OUT',
+        product_id=shipment.product_id,
+        from_warehouse_id=shipment.warehouse_id,
+        quantity=shipment.quantity,
+        company_id=current_user.company_id,
+        user_id=current_user.id
+    )
+    session.add(mov)
+
     await session.commit()
     await session.refresh(new_shipment)
     return new_shipment
@@ -90,6 +102,17 @@ async def delete_shipment(
         else:
             new_inv = Inventory(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, quantity=shipment.quantity, company_id=current_user.company_id)
             session.add(new_inv)
+        
+        # ФИКС: Оставляем след в истории (Корректирующий приход)
+        mov = Movement(
+            type='IN',
+            product_id=shipment.product_id,
+            to_warehouse_id=shipment.warehouse_id,
+            quantity=shipment.quantity,
+            company_id=current_user.company_id,
+            user_id=current_user.id
+        )
+        session.add(mov)
         
     await session.delete(shipment)
     await session.commit()
@@ -121,6 +144,17 @@ async def update_shipment_status(
         else:
             new_inv = Inventory(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, quantity=shipment.quantity, company_id=current_user.company_id)
             session.add(new_inv)
+        
+        # ФИКС: Оставляем след в истории (Возврат)
+        mov = Movement(
+            type='IN',
+            product_id=shipment.product_id,
+            to_warehouse_id=shipment.warehouse_id,
+            quantity=shipment.quantity,
+            company_id=current_user.company_id,
+            user_id=current_user.id
+        )
+        session.add(mov)
             
     shipment.status = status_update.status
     await session.commit()

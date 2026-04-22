@@ -38,7 +38,15 @@ async def create_product(
     current_user: User = Depends(get_current_user)
 ):
     from app.models.warehouse import Warehouse
+    from app.models.category import Category
     
+    if product.category_id:
+        cat_result = await session.execute(
+            select(Category).filter_by(id=product.category_id, company_id=current_user.company_id, is_active=True)
+        )
+        if not cat_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Категория не найдена, в архиве или доступ запрещен")
+
     if product.initial_warehouse_id:
         wh_result = await session.execute(select(Warehouse).filter_by(id=product.initial_warehouse_id, company_id=current_user.company_id))
         if not wh_result.scalars().first():
@@ -87,6 +95,14 @@ async def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found or archived")
         
+    if data.category_id:
+        from app.models.category import Category
+        cat_result = await session.execute(
+            select(Category).filter_by(id=data.category_id, company_id=current_user.company_id, is_active=True)
+        )
+        if not cat_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Категория не найдена, в архиве или доступ запрещен")
+
     product.sku = data.sku
     product.title = data.title
     product.price = data.price

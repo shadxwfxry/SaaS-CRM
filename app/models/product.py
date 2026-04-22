@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Float, ForeignKey, UniqueConstraint, Boolean
+from sqlalchemy import String, Float, ForeignKey, UniqueConstraint, Boolean, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Uuid as UUID
 from .base import Base
@@ -23,7 +23,7 @@ class Product(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sku: Mapped[str] = mapped_column(String(100), index=True)
     title: Mapped[str] = mapped_column(String(255))
-    price: Mapped[float] = mapped_column(Float, default=0.0)
+    price: Mapped[float] = mapped_column(Numeric(10, 2), default=0.00)
     category_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("categories.id"))
     company_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("companies.id"), index=True)
     image_url: Mapped[str | None] = mapped_column(String)
