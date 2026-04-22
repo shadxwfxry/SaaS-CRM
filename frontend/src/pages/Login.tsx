@@ -8,7 +8,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { checkAuth } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,13 +20,13 @@ export default function Login() {
       formData.append('username', email);
       formData.append('password', password);
       
-      const response = await api.post('/api/v1/auth/login', formData, {
+      await api.post('/api/v1/auth/login', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       });
       
-      login(response.data.access_token);
+      await checkAuth();
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Помилка авторизації');

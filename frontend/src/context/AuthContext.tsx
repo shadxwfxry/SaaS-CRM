@@ -2,30 +2,51 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../api/client';
 
 interface AuthContextType {
-  token: string | null;
   isAuthenticated: boolean;
-  login: (token: string) => void;
-  logout: () => void;
+  isLoading: boolean;
+  checkAuth: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const checkAuth = async () => {
+    try {
+      await api.get('/api/v1/auth/me');
+      setIsAuthenticated(true);
+    } catch (error) {
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token);
-    } else {
-      localStorage.removeItem('token');
-    }
-  }, [token]);
+    checkAuth();
 
-  const login = (newToken: string) => setToken(newToken);
-  const logout = () => setToken(null);
+    const handleAuthError = () => {
+      setIsAuthenticated(false);
+    };
+
+    window.addEventListener('auth-error', handleAuthError);
+    return () => window.removeEventListener('auth-error', handleAuthError);
+  }, []);
+
+  const logout = async () => {
+    try {
+      await api.post('/api/v1/auth/logout');
+    } catch (e) {
+      console.error('Logout error', e);
+    }
+    setIsAuthenticated(false);
+  };
 
   return (
-    <AuthContext.Provider value={{ token, isAuthenticated: !!token, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, checkAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );
