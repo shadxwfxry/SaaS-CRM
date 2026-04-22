@@ -79,43 +79,8 @@ async def create_shipment(
     await session.refresh(new_shipment)
     return new_shipment
 
-@router.delete("/{shipment_id}", status_code=204)
-async def delete_shipment(
-    shipment_id: UUID, 
-    session: AsyncSession = Depends(get_async_session),
-    current_user: User = Depends(get_current_user)
-):
-    result = await session.execute(select(Shipment).filter_by(id=shipment_id, company_id=current_user.company_id))
-    shipment = result.scalars().first()
-    if not shipment:
-        raise HTTPException(status_code=404, detail="Shipment not found")
-        
-    if shipment.status != 'RETURNED':
-        result_inv = await session.execute(
-            select(Inventory)
-            .filter_by(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, company_id=current_user.company_id)
-            .with_for_update()
-        )
-        inv = result_inv.scalars().first()
-        if inv:
-            inv.quantity += shipment.quantity
-        else:
-            new_inv = Inventory(warehouse_id=shipment.warehouse_id, product_id=shipment.product_id, quantity=shipment.quantity, company_id=current_user.company_id)
-            session.add(new_inv)
-        
-        # ФИКС: Оставляем след в истории (Корректирующий приход)
-        mov = Movement(
-            type='IN',
-            product_id=shipment.product_id,
-            to_warehouse_id=shipment.warehouse_id,
-            quantity=shipment.quantity,
-            company_id=current_user.company_id,
-            user_id=current_user.id
-        )
-        session.add(mov)
-        
-    await session.delete(shipment)
-    await session.commit()
+# DELETE /shipments/{id} удален по архитектурным соображениям. 
+# Используйте PATCH /status для отмены (CANCELLED) или возврата (RETURNED).
 
 @router.patch("/{shipment_id}/status", response_model=ShipmentResponse)
 async def update_shipment_status(

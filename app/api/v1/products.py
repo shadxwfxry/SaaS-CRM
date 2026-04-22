@@ -128,6 +128,6 @@ async def delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
         
     product.is_active = False
-    # ФИКС: Освобождаем SKU для будущего использования
-    product.sku = f"{product.sku}_deleted_{str(product.id)[:8]}" 
+    # ФИКС: Освобождаем SKU для будущего использования (с обрезкой, чтобы влезло в 100 символов)
+    product.sku = f"{product.sku[:75]}_deleted_{str(product.id)[:8]}" 
     await session.commit()

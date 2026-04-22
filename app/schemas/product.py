@@ -1,11 +1,12 @@
 from pydantic import BaseModel, ConfigDict
+from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
 class ProductBase(BaseModel):
     sku: str
     title: str
-    price: float = 0.0
+    price: Decimal = Decimal("0.00")
     image_url: str | None = None
     category_id: UUID | None = None
 

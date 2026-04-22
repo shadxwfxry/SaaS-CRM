@@ -38,9 +38,6 @@ async def get_current_user(request: Request, session: AsyncSession = Depends(get
     token = request.cookies.get("access_token")
     if not token:
         raise credentials_exception
-        
-    if token.startswith("Bearer "):
-        token = token.split(" ")[1]
 
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
@@ -50,7 +47,12 @@ async def get_current_user(request: Request, session: AsyncSession = Depends(get
     except JWTError:
         raise credentials_exception
         
-    user = await session.get(User, user_id_str)
+    try:
+        user_id = uuid.UUID(user_id_str)
+    except ValueError:
+        raise credentials_exception
+        
+    user = await session.get(User, user_id)
     if user is None:
         raise credentials_exception
     return user
